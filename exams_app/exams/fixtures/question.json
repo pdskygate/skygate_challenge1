@@ -1,0 +1,42 @@
+[
+  {
+    "model": "exams.Question",
+    "pk": 1,
+    "fields": {
+      "text": "What is the biggest country?",
+      "question_type": 4,
+      "answer_possibilities": [
+        1,
+        2,
+        3
+      ]
+    }
+  },
+  {
+    "model": "exams.Question",
+    "pk": 2,
+    "fields": {
+      "text": "What is the biggest european mountain?",
+      "question_type": 1,
+      "answer_possibilities": []
+    }
+  },
+  {
+    "model": "exams.Question",
+    "pk": 3,
+    "fields": {
+      "text": "How moany countries borders with Poland",
+      "question_type": 3,
+      "answer_possibilities": []
+    }
+  },
+  {
+    "model": "exams.Question",
+    "pk": 4,
+    "fields": {
+      "text": "Is Warsaw capital city ",
+      "question_type": 2,
+      "answer_possibilities": []
+    }
+  }
+]

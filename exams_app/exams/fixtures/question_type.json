@@ -1,0 +1,31 @@
+[
+  {
+    "model": "exams.QuestionType",
+    "pk": 1,
+    "fields": {
+      "type": "text"
+    }
+  },
+  {
+    "model": "exams.QuestionType",
+    "pk": 2,
+    "fields": {
+      "type": "boolean"
+    }
+  },
+  {
+    "model": "exams.QuestionType",
+    "pk": 3,
+    "fields": {
+      "type": "number"
+    }
+  },
+  {
+    "model": "exams.QuestionType",
+    "pk": 4,
+    "fields": {
+      "type": "select"
+    }
+  }
+
+]

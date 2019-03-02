@@ -1,0 +1,26 @@
+[
+    {
+        "model": "exams.AnswerPossibility",
+        "pk": 1,
+        "fields": {
+            "value": "Poland",
+            "code": "PL"
+        }
+    },
+    {
+        "model": "exams.AnswerPossibility",
+        "pk": 2,
+        "fields": {
+            "value": "France",
+            "code": "FR"
+        }
+    },
+    {
+        "model": "exams.AnswerPossibility",
+        "pk": 3,
+        "fields": {
+            "value": "Germany",
+            "code": "DE"
+        }
+    }
+]
