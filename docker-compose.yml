@@ -1,0 +1,41 @@
+version: '3.1'
+
+services:
+
+  exam_db:
+    image: postgres:11.2
+    environment:
+      - POSTGRES_USER=skygate_admin
+      - POSTGRES_PASSWORD=skygate_pass
+      - POSTGRES_DB=exams_db
+    volumes:
+      - database:/var/lib/postgresql/data
+    ports:
+     - "5432:5432"
+    networks:
+      - examsn
+
+
+  exams_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    depends_on:
+      - exam_db
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/usr/src/app
+    environment:
+      - DB_NAME=exams_db
+      - DB_USER=skygate_admin
+      - DB_PASSWORD=skygate_pass
+      - DB_HOST=exam_db
+      - DB_PORT=5432
+    networks:
+      - examsn
+
+networks:
+  examsn:
+volumes:
+  database:
