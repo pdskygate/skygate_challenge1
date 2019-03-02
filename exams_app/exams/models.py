@@ -6,6 +6,7 @@ from django.utils.translation import ugettext_lazy as _
 class User(AbstractUser):
     pass
 
+
 class AnswerPossibility(models.Model):
     class Meta:
         verbose_name = _('Answer possibility')
@@ -72,3 +73,5 @@ class Exam(models.Model):
         verbose_name_plural = _('Exam')
 
     questions = models.ManyToManyField(Question, verbose_name=("Exams tasks"))
+    final_grade = models.FloatField(blank=True, null=True)
+    owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
