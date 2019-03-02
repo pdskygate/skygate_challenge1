@@ -19,6 +19,7 @@ from rest_framework import routers
 from exams_app.exams import views
 
 router = routers.DefaultRouter()
+router.register('exam',views.ExamManagementView, basename='exams')
 
 
 urlpatterns = [
