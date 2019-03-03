@@ -10,6 +10,9 @@ logger = logging.getLogger("exceptions")
 class InvalidParamError(APIException):
     status_code = 400
 
+class ModelNotExistsError(APIException):
+    status_code = 400
+
 
 def api_exception_chandler(exc, context):
     response = exception_handler(exc, context)
