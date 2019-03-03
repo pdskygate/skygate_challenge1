@@ -16,7 +16,7 @@ class ModelNotExistsError(APIException):
 
 def api_exception_chandler(exc, context):
     response = exception_handler(exc, context)
-    logger.error(exc.__traceback__)
+    logger.error(exc, exc_info=(type(exc), exc, exc.__traceback__))
     if response is not None:
         response.data['status_code'] = response.status_code
     else:

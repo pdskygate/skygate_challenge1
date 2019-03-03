@@ -3,7 +3,7 @@ import abc
 from django.core.exceptions import ObjectDoesNotExist
 
 
-class AbstractReposository(abc.ABCMeta):
+class AbstractReposository(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def crate_model(self, **kwargs):
@@ -44,7 +44,7 @@ class BaseRepository(AbstractReposository):
         return self._model_class.objects.get(id)
 
     def filter(self, **kwargs):
-        return self._model_class.objects.filter(kwargs)
+        return self._model_class.objects.filter(**kwargs)
 
 
 class ExamRepository(BaseRepository):
