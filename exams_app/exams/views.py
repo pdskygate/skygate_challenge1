@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from exams_app.exams.exceptions import InvalidParamError
 from exams_app.exams.models import Exam, User, Question
 from exams_app.exams.repositories import ExamRepository, BaseRepository
+from exams_app.exams.response_builder import ResponseBuilder
 from exams_app.exams.serializers import ExamSerializer
 
 
@@ -43,9 +44,12 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
 
     def list(self, request, **kwargs):
 
+        pass
+
+    def create(self, request, *args, **kwargs):
         self.valid_definitions.update({'q': list})
-        params = request.GET.dict()
-        params.update({'q':request.query_params.getlist('q')})
+        params = request.POST.dict()
+        params.update({'q': request.POST.getlist('q')})
         self.valid_params(params)
 
         exam_repo = ExamRepository(Exam)
@@ -55,15 +59,12 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
             for question_id in params.get('q'):
                 q_repo.find_by_id(question_id)
         except Question.DoesNotExist as e:
-            raise InvalidParamError(f'Question vit given id {question_id}, does not exist')
+            raise InvalidParamError(f'Question {e}, does not exist')
         user = user_repo.filter(username=request.user).first()
 
         exam = exam_repo.crate_model(user=user, questions=params.get('q'))
 
-        return Response({'data':self.serializer_class(exam).data})
-
-    def create(self, request, *args, **kwargs):
-        pass
+        return ResponseBuilder(self.serializer_class(exam).data).build()
 
     def update(self, request, *args, **kwargs):
         pass
