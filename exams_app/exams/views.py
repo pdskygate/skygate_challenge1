@@ -24,6 +24,7 @@ class ParamValidatorMixin(object):
                 self.valid_definitions.get(key)(value)
             except:
                 raise InvalidParamError(f'Invalid type param. {key}, should be {self.valid_definitions.get(key)}')
+        return True
 
 
 class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
