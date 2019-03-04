@@ -98,3 +98,7 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
             raise InvalidParamError('Exam with given id not exists')
 
         return ResponseBuilder(True).build()
+
+
+class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
+    pass

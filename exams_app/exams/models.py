@@ -38,11 +38,32 @@ class Question(models.Model):
         return self.text
 
 
+class Exam(models.Model):
+    class Meta:
+        verbose_name = _('Exam')
+        verbose_name_plural = _('Exam')
+
+    questions = models.ManyToManyField(Question, verbose_name=("Exams tasks"))
+    final_grade = models.FloatField(blank=True, null=True)
+    owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
+
+class SolvedExam(models.Model):
+    class Meta:
+        verbose_name = _('Solved Exam')
+        verbose_name_plural = _('Solved_exams')
+
+    date = models.DateField()
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
+
+
+
 class Answer(models.Model):
     class Meta:
         verbose_name = _(u'Answer')
         verbose_name_plural = _(u'Answers')
 
+    solved_exam = models.ForeignKey(SolvedExam, on_delete=models.CASCADE)
     question = models.ForeignKey(Question, on_delete=models.DO_NOTHING)
     text_answer = models.CharField(max_length=250, null=True, blank=True)
     binary_answer = models.NullBooleanField(null=True, blank=True)
@@ -65,13 +86,3 @@ class Answer(models.Model):
 
     def __str__(self):
         return self.get_value()
-
-
-class Exam(models.Model):
-    class Meta:
-        verbose_name = _('Exam')
-        verbose_name_plural = _('Exam')
-
-    questions = models.ManyToManyField(Question, verbose_name=("Exams tasks"))
-    final_grade = models.FloatField(blank=True, null=True)
-    owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
