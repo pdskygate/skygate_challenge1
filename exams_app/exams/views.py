@@ -2,8 +2,11 @@ from rest_framework import viewsets
 from rest_framework.authentication import BasicAuthentication
 from rest_framework.exceptions import APIException
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from exams_app.exams.exceptions import InvalidParamError
+from exams_app.exams.models import Exam, User, Question
+from exams_app.exams.repositories import ExamRepository, BaseRepository
 from exams_app.exams.serializers import ExamSerializer
 
 
@@ -32,15 +35,32 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
     authentication_classes = (BasicAuthentication,)
     serializer_class = ExamSerializer
     valid_definitions = {
-        'test': int
+
     }
 
     def get_queryset(self):
         pass
 
     def list(self, request, **kwargs):
-        self.valid_params(request.GET.dict())
-        pass
+
+        self.valid_definitions.update({'q': list})
+        params = request.GET.dict()
+        params.update({'q':request.query_params.getlist('q')})
+        self.valid_params(params)
+
+        exam_repo = ExamRepository(Exam)
+        user_repo = BaseRepository(User)
+        q_repo = BaseRepository(Question)
+        try:
+            for question_id in params.get('q'):
+                q_repo.find_by_id(question_id)
+        except Question.DoesNotExist as e:
+            raise InvalidParamError(f'Question vit given id {question_id}, does not exist')
+        user = user_repo.filter(username=request.user).first()
+
+        exam = exam_repo.crate_model(user=user, questions=params.get('q'))
+
+        return Response({'data':self.serializer_class(exam).data})
 
     def create(self, request, *args, **kwargs):
         pass

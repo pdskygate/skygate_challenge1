@@ -21,7 +21,7 @@ class QuestionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Question
-        fields = ('text',)
+        fields = ('text', 'question_type', 'answer_possibilities')
 
 
 class AnswerSerializer(serializers.ModelSerializer):
@@ -40,9 +40,9 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class ExamSerializer(serializers.ModelSerializer):
-    questions = QuestionSerializer()
+    questions = QuestionSerializer(read_only=True, many=True)
     owner = UserSerializer()
 
     class Meta:
         model = Exam
-        fields = ('final_grade',)
+        fields = ('final_grade', 'questions', 'owner')
