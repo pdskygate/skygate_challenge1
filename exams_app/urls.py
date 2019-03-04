@@ -13,16 +13,24 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-
+from django.conf.urls import url
 from django.urls import path, include
 from rest_framework import routers
-from exams_app.exams import views
+from exams_app.exams.views import ExamManagementView
 
 router = routers.DefaultRouter()
-router.register('exam', views.ExamManagementView, basename='exams')
 
 
 urlpatterns = [
     path('', include(router.urls)),
+    url('exam/(?P<exam_id>[0-9]+)', ExamManagementView.as_view({
+        'get':'list',
+        'delete':'destroy'
+    })),
+    url('exam', ExamManagementView.as_view({
+        'get':'list',
+        'post':'create',
+        'put':'update'
+    })),
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]

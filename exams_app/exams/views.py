@@ -2,7 +2,7 @@ from rest_framework import viewsets
 from rest_framework.authentication import BasicAuthentication
 from rest_framework.exceptions import APIException
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
+
 
 from exams_app.exams.exceptions import InvalidParamError
 from exams_app.exams.models import Exam, User, Question
@@ -42,9 +42,20 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
     def get_queryset(self):
         pass
 
-    def list(self, request, **kwargs):
-
-        pass
+    def list(self, request, exam_id, **kwargs):
+        self.valid_definitions.update({'id': int})
+        if exam_id:
+            params = {'id': exam_id}
+            self.valid_params(params)
+            try:
+                return ResponseBuilder(
+                    self.serializer_class(ExamRepository(Exam).find_by_id(exam_id)).data
+                ).build()
+            except Exam.DoesNotExist as e:
+                raise InvalidParamError(f'Exam {e}, does not exist')
+        else:
+            # TODO: Filtering options
+            pass
 
     def create(self, request, *args, **kwargs):
         self.valid_definitions.update({'q': list})
@@ -67,4 +78,23 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
         return ResponseBuilder(self.serializer_class(exam).data).build()
 
     def update(self, request, *args, **kwargs):
-        pass
+        self.valid_definitions.update({
+            'q': list,
+            'id': int,
+            'grade': float
+        })
+        params = request.POST.dict()
+        params.update({'q': request.POST.getlist('q')})
+        self.valid_params(params)
+        exam_repo = ExamRepository(Exam)
+        exam = exam_repo.update_model(model_id=params.pop('id'), **params)
+        return ResponseBuilder(self.serializer_class(exam).data).build()
+
+    def destroy(self, request, exam_id, **kwargs):
+        exam_repo = ExamRepository(Exam)
+        try:
+            exam_repo.delete_model(exam_id)
+        except Exam.DoesNotExist as e:
+            raise InvalidParamError('Exam with given id not exists')
+
+        return ResponseBuilder(True).build()

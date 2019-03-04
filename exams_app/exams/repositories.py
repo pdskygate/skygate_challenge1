@@ -3,6 +3,8 @@ import abc
 from django.core.exceptions import ObjectDoesNotExist
 from collections import abc as col_abc
 
+from exams_app.exams.exceptions import InvalidParamError
+
 
 class AbstractReposository(metaclass=abc.ABCMeta):
 
@@ -61,14 +63,12 @@ class ExamRepository(BaseRepository):
     def update_model(self, model_id, **kwargs):
         try:
             exam = self._model_class.objects.get(id=model_id)
-
-            exam.questions.set([kwargs.get('questions')] if not isinstance(kwargs.get('questions'), col_abc.Iterable) else kwargs.get('questions'))
+            if kwargs.get('questions'):
+                exam.questions.set([kwargs.get('questions')] if not isinstance(kwargs.get('questions'), col_abc.Iterable) else kwargs.get('questions'))
+            if kwargs.get('grade'):
+                exam.final_grade = kwargs.get('grade')
             exam.save()
         except ObjectDoesNotExist as e:
-            exam = self._model_class()
-            exam.save()
-            exam.questions.set([kwargs.get('questions')] if not isinstance(kwargs.get('questions'), col_abc.Iterable) else kwargs.get('questions'))
-            exam.owner = kwargs.get('user')
-            exam.save()
+            raise InvalidParamError('Given exam id does not exist')
         return exam
 
