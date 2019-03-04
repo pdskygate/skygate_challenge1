@@ -1,6 +1,14 @@
+from enum import Enum
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
+
+class QuestionTypeEnum(Enum):
+    TEXT = 'text'
+    NUMBER = 'number'
+    POSSIBILITY = 'select'
+    BOOLEAN = 'boolean'
 
 
 class User(AbstractUser):
@@ -74,16 +82,28 @@ class Answer(models.Model):
     def get_value(self):
         try:
             a_type = self.question.question_type.type
-            if a_type == 'text':
+            if a_type == QuestionTypeEnum.TEXT.value:
                 return self.text_answer
-            elif a_type == 'boolean':
+            elif a_type == QuestionTypeEnum.BOOLEAN.value:
                 return str(self.binary_answer)
-            elif a_type == 'number':
+            elif a_type == QuestionTypeEnum.NUMBER.value:
                 return str(self.number_value)
             else:
                 return self.chosen_value
         except Question.DoesNotExist:
             return ''
+
+    def set_value(self, type, value):
+
+        if type == QuestionTypeEnum.TEXT.value:
+            self.text_answer = value
+        elif type == QuestionTypeEnum.BOOLEAN.value:
+            self.binary_answer = value
+        elif type == QuestionTypeEnum.NUMBER.value:
+            self.number_value = value
+        else:
+            self.chosen_value = AnswerPossibility.objects.get(id=int(value))
+
 
     def __str__(self):
         return self.get_value()

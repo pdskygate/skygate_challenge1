@@ -52,6 +52,9 @@ class BaseRepository(AbstractReposository):
     def filter(self, **kwargs):
         return self._model_class.objects.filter(**kwargs)
 
+    def select_related(self, related_field, model_id):
+        return self._model_class.objects.select_related(related_field).get(id=model_id)
+
 
 class ExamRepository(BaseRepository):
 
@@ -92,3 +95,16 @@ class SolvedExamRepository(BaseRepository):
         if kwargs.get('grade'):
             solved_exam.final_grade = kwargs.get('grade)')
         return solved_exam
+
+class AnswerRepository(BaseRepository):
+
+
+    def create_model(self, s_exam, question, value):
+        answer = self._model_class()
+        answer.solved_exam = s_exam
+        answer.question = question
+        answer.set_value(question.question_type, value)
+        answer.save()
+        return answer
+
+

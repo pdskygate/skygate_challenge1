@@ -4,8 +4,8 @@ from rest_framework.exceptions import APIException
 from rest_framework.permissions import IsAuthenticated
 
 from exams_app.exams.exceptions import InvalidParamError
-from exams_app.exams.models import Exam, User, Question, SolvedExam
-from exams_app.exams.repositories import ExamRepository, BaseRepository, SolvedExamRepository
+from exams_app.exams.models import Exam, User, Question, SolvedExam, Answer
+from exams_app.exams.repositories import ExamRepository, BaseRepository, SolvedExamRepository, AnswerRepository
 from exams_app.exams.response_builder import ResponseBuilder
 from exams_app.exams.serializers import ExamSerializer
 
@@ -108,10 +108,17 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
     }
 
     def create(self, request, *args, **kwargs):
+        # contract agrement should be more strict
         self.valid_definitions.update({
             'exam_id': int,
+            'answers': dict
         })
-        params = request.POST.dict()
+        params = request.data
+        self.valid_params(params)
         solvedE_repo = SolvedExamRepository(SolvedExam)
-        solved = solvedE_repo.crate_model(exam='', user=request.user)
-        pass
+        exam = ExamRepository(Exam).find_by_id(params.get('exam_id'))
+        solved = solvedE_repo.crate_model(exam=exam, user=request.user)
+        for question in exam.questions.all():
+            AnswerRepository(Answer).create_model(solved,question, params.get('answers').get(str(question.id),''))
+
+        return ResponseBuilder('Exam solved, wait for graduation').build()
