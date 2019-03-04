@@ -10,7 +10,12 @@ logger = logging.getLogger("exceptions")
 class InvalidParamError(APIException):
     status_code = 400
 
+
 class ModelNotExistsError(APIException):
+    status_code = 400
+
+
+class SolvingError(APIException):
     status_code = 400
 
 

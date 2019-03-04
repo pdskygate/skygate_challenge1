@@ -1,9 +1,12 @@
 import abc
-
+from datetime import datetime
 from django.core.exceptions import ObjectDoesNotExist
 from collections import abc as col_abc
 
-from exams_app.exams.exceptions import InvalidParamError
+from rest_framework.exceptions import PermissionDenied
+
+from exams_app.exams.exceptions import InvalidParamError, SolvingError
+from exams_app.exams.models import Exam
 
 
 class AbstractReposository(metaclass=abc.ABCMeta):
@@ -64,11 +67,28 @@ class ExamRepository(BaseRepository):
         try:
             exam = self._model_class.objects.get(id=model_id)
             if kwargs.get('questions'):
-                exam.questions.set([kwargs.get('questions')] if not isinstance(kwargs.get('questions'), col_abc.Iterable) else kwargs.get('questions'))
-            if kwargs.get('grade'):
-                exam.final_grade = kwargs.get('grade')
+                exam.questions.set([kwargs.get('questions')] if not isinstance(kwargs.get('questions'),
+                                                                               col_abc.Iterable) else kwargs.get(
+                    'questions'))
             exam.save()
         except ObjectDoesNotExist as e:
             raise InvalidParamError('Given exam id does not exist')
         return exam
 
+
+class SolvedExamRepository(BaseRepository):
+
+    def crate_model(self, exam, user):
+        if self._model_class.objects.filter(exam=exam, user=user).count() > 0:
+            raise SolvingError('Exam already solved by the user')
+
+        self._model_class.objects.create(exam=exam, user=user, date=datetime.now())
+
+
+    def update_model(self, model_id, **kwargs):
+        solved_exam = self._model_class.objects.get(model_id)
+        if kwargs.get('user') == solved_exam.exam.owner.username:
+            raise PermissionDenied('Only user can grade')
+        if kwargs.get('grade'):
+            solved_exam.final_grade = kwargs.get('grade)')
+        return solved_exam

@@ -44,8 +44,9 @@ class Exam(models.Model):
         verbose_name_plural = _('Exam')
 
     questions = models.ManyToManyField(Question, verbose_name=("Exams tasks"))
-    final_grade = models.FloatField(blank=True, null=True)
+    # final_grade = models.FloatField(blank=True, null=True)
     owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
+
 
 class SolvedExam(models.Model):
     class Meta:
@@ -55,7 +56,7 @@ class SolvedExam(models.Model):
     date = models.DateField()
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
-
+    final_grade = models.FloatField(blank=True, null=True)
 
 
 class Answer(models.Model):
@@ -63,7 +64,7 @@ class Answer(models.Model):
         verbose_name = _(u'Answer')
         verbose_name_plural = _(u'Answers')
 
-    solved_exam = models.ForeignKey(SolvedExam, on_delete=models.CASCADE)
+    solved_exam = models.ForeignKey(SolvedExam, on_delete=models.CASCADE, null=True, blank=True)
     question = models.ForeignKey(Question, on_delete=models.DO_NOTHING)
     text_answer = models.CharField(max_length=250, null=True, blank=True)
     binary_answer = models.NullBooleanField(null=True, blank=True)

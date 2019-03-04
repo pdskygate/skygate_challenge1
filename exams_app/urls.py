@@ -16,13 +16,17 @@ Including another URLconf
 from django.conf.urls import url
 from django.urls import path, include
 from rest_framework import routers
-from exams_app.exams.views import ExamManagementView
+from exams_app.exams.views import ExamManagementView, SolveExamView
 
 router = routers.DefaultRouter()
 
 
 urlpatterns = [
     path('', include(router.urls)),
+    url('solve_exam/', SolveExamView.as_view({
+        'post':'create',
+        'put':'update'
+    })),
     url('exam/(?P<exam_id>[0-9]+)', ExamManagementView.as_view({
         'get':'list',
         'delete':'destroy'

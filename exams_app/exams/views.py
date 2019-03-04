@@ -3,10 +3,9 @@ from rest_framework.authentication import BasicAuthentication
 from rest_framework.exceptions import APIException
 from rest_framework.permissions import IsAuthenticated
 
-
 from exams_app.exams.exceptions import InvalidParamError
-from exams_app.exams.models import Exam, User, Question
-from exams_app.exams.repositories import ExamRepository, BaseRepository
+from exams_app.exams.models import Exam, User, Question, SolvedExam
+from exams_app.exams.repositories import ExamRepository, BaseRepository, SolvedExamRepository
 from exams_app.exams.response_builder import ResponseBuilder
 from exams_app.exams.serializers import ExamSerializer
 
@@ -15,6 +14,7 @@ class ParamValidatorMixin(object):
     '''valid_definitins should be dict {param_name: type}'''
 
     valid_definitions = None
+
 
     def valid_params(self, actual_params):
         if not self.valid_definitions:
@@ -32,9 +32,9 @@ class ParamValidatorMixin(object):
 
 
 class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
+    serializer_class = ExamSerializer
     permission_classes = (IsAuthenticated,)
     authentication_classes = (BasicAuthentication,)
-    serializer_class = ExamSerializer
     valid_definitions = {
 
     }
@@ -80,8 +80,7 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
     def update(self, request, *args, **kwargs):
         self.valid_definitions.update({
             'q': list,
-            'id': int,
-            'grade': float
+            'id': int
         })
         params = request.POST.dict()
         params.update({'q': request.POST.getlist('q')})
@@ -100,5 +99,19 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
         return ResponseBuilder(True).build()
 
 
+
 class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
-    pass
+    permission_classes = (IsAuthenticated,)
+    authentication_classes = (BasicAuthentication,)
+    valid_definitions = {
+
+    }
+
+    def create(self, request, *args, **kwargs):
+        self.valid_definitions.update({
+            'exam_id': int,
+        })
+        params = request.POST.dict()
+        solvedE_repo = SolvedExamRepository(SolvedExam)
+        solved = solvedE_repo.crate_model(exam='', user=request.user)
+        pass
