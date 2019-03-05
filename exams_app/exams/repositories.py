@@ -36,6 +36,7 @@ class BaseRepository(AbstractReposository):
 
     def __init__(self, model_class):
         self._model_class = model_class
+        self._qs = None
 
     def crate_model(self, **kwargs):
         raise NotImplementedError('Cannot create, use specified repository')
@@ -50,10 +51,26 @@ class BaseRepository(AbstractReposository):
         return self._model_class.objects.get(id=model_id)
 
     def filter(self, **kwargs):
-        return self._model_class.objects.filter(**kwargs)
+        if self._qs is None:
+            self._qs = self._model_class.objects.filter(**kwargs)
+        else:
+            self._qs = self._qs | self._model_class.objects.filter(**kwargs)
+        return self
 
-    def select_related(self, model_id):
-        return self._model_class.objects.filter(id=model_id).select_related().first()
+    def lazy_fetch(self):
+        return self._qs
+
+    def fetch_all(self):
+        return self._qs.all()
+
+    def fetch_related_all(self):
+        return self._qs.select_related()
+
+    def fetch(self):
+        return self._qs.all().first()
+
+    def fetch_related(self):
+        return self._qs.select_related().first()
 
 
 class ExamRepository(BaseRepository):

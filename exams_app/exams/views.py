@@ -49,7 +49,7 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
         self.valid_params(params)
         try:
             return ResponseBuilder(
-                self.serializer_class(ExamRepository(Exam).filter(**params), many=True).data
+                self.serializer_class(ExamRepository(Exam).filter(**params).fetch_all(), many=True).data
             ).build()
         except Exam.DoesNotExist as e:
             raise InvalidParamError(f'Exam {e}, does not exist')
@@ -68,7 +68,7 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
                 q_repo.find_by_id(question_id)
         except Question.DoesNotExist as e:
             raise InvalidParamError(f'Question {e}, does not exist')
-        user = user_repo.filter(username=request.user).first()
+        user = user_repo.filter(username=request.user).fetch()
 
         exam = exam_repo.crate_model(user=user, questions=params.get('q'))
 
@@ -89,10 +89,9 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
         questions = params.get('q')
         q_repo = BaseRepository(Question)
         if questions:
-            q_set = q_repo.filter(id=questions[0])
-            for q_id in questions[1:]:
-                q_set = q_set | q_repo.filter(id=q_id)
-            exam = exam_repo.update_model(exam, user=request.user.username, questions=q_set)
+            for q_id in questions:
+                q_repo.filter(id=q_id)
+            exam = exam_repo.update_model(exam, user=request.user.username, questions=q_repo.fetch_all())
         return ResponseBuilder(self.serializer_class(exam).data).build()
 
     def destroy(self, request, **kwargs):
@@ -145,7 +144,7 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
         params.update(request.data)
         self.valid_params(params)
         solvedE_repo = SolvedExamRepository(SolvedExam)
-        solved_exam = solvedE_repo.select_related(params.get('pk'))
+        solved_exam = solvedE_repo.filter(id=params.get('pk')).fetch()
         if params.get('final_grade'):
             solvedE_repo.update_model(solved_exam, user=request.user.username, grade=params.get('final_grade'))
         return ResponseBuilder(self.serializer_class(solved_exam).data).build()
