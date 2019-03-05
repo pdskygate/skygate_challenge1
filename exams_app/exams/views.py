@@ -15,7 +15,6 @@ class ParamValidatorMixin(object):
 
     valid_definitions = None
 
-
     def valid_params(self, actual_params):
         if not self.valid_definitions:
             raise APIException('Validation not definied')
@@ -105,7 +104,6 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
         return ResponseBuilder(True).build()
 
 
-
 class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
     permission_classes = (IsAuthenticated,)
     authentication_classes = (BasicAuthentication,)
@@ -113,8 +111,19 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
     valid_definitions = {
 
     }
+
     def get_queryset(self):
-        return SolvedExam.objects.all()
+        return Answer.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        self.valid_definitions.update({
+            'user_name': str,
+            'exam_id': int,
+        })
+        params = request.query_params.dict()
+        answers = AnswerRepository(Answer).filter(solved_exam__exam_id=params.get('exam_id'),
+                                                  solved_exam__user__username=request.user).fetch_all()
+        # answers
 
     def create(self, request, *args, **kwargs):
         # contract agreement should be more strict
@@ -128,7 +137,7 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
         exam = ExamRepository(Exam).find_by_id(params.get('exam_id'))
         solved = solvedE_repo.crate_model(exam=exam, user=request.user)
         for question in exam.questions.all():
-            AnswerRepository(Answer).create_model(solved,question, params.get('answers').get(str(question.id),''))
+            AnswerRepository(Answer).create_model(solved, question, params.get('answers').get(str(question.id), ''))
 
         return ResponseBuilder('Exam solved, wait for graduation').build()
 
