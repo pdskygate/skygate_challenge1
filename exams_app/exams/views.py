@@ -40,22 +40,19 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
     }
 
     def get_queryset(self):
-        pass
+        return Exam.objects.all()
 
-    def list(self, request, exam_id, **kwargs):
+    def list(self, request, **kwargs):
         self.valid_definitions.update({'id': int})
-        if exam_id:
-            params = {'id': exam_id}
-            self.valid_params(params)
-            try:
-                return ResponseBuilder(
-                    self.serializer_class(ExamRepository(Exam).find_by_id(exam_id)).data
-                ).build()
-            except Exam.DoesNotExist as e:
-                raise InvalidParamError(f'Exam {e}, does not exist')
-        else:
-            # TODO: Filtering options
-            pass
+
+        params = {}
+        self.valid_params(params)
+        try:
+            return ResponseBuilder(
+                self.serializer_class(ExamRepository(Exam).filter(**params), many=True).data
+            ).build()
+        except Exam.DoesNotExist as e:
+            raise InvalidParamError(f'Exam {e}, does not exist')
 
     def create(self, request, *args, **kwargs):
         self.valid_definitions.update({'q': list})
@@ -90,8 +87,9 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
         exam = exam_repo.update_model(model_id=params.pop('id'), **params)
         return ResponseBuilder(self.serializer_class(exam).data).build()
 
-    def destroy(self, request, exam_id, **kwargs):
+    def destroy(self, request, **kwargs):
         exam_repo = ExamRepository(Exam)
+        exam_id = self.kwargs.get('pk')
         try:
             exam_repo.delete_model(exam_id)
         except Exam.DoesNotExist as e:
