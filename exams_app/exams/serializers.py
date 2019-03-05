@@ -45,4 +45,4 @@ class ExamSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Exam
-        fields = ('questions', 'owner')
+        fields = ('questions', 'owner','pk')
