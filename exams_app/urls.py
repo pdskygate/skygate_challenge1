@@ -19,6 +19,7 @@ from exams_app.exams.views import ExamManagementView, SolveExamView
 
 router = routers.DefaultRouter()
 router.register('exam', ExamManagementView, basename='exam')
+router.register('solve_exam', SolveExamView, basename='solve_exam')
 
 urlpatterns = [
     path('', include(router.urls)),

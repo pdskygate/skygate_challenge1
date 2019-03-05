@@ -52,8 +52,8 @@ class BaseRepository(AbstractReposository):
     def filter(self, **kwargs):
         return self._model_class.objects.filter(**kwargs)
 
-    def select_related(self, related_field, model_id):
-        return self._model_class.objects.select_related(related_field).get(id=model_id)
+    def select_related(self, model_id):
+        return self._model_class.objects.filter(id=model_id).select_related().first()
 
 
 class ExamRepository(BaseRepository):
@@ -66,13 +66,11 @@ class ExamRepository(BaseRepository):
         exam.save()
         return exam
 
-    def update_model(self, model_id, **kwargs):
+    def update_model(self, model, **kwargs):
         try:
-            exam = self._model_class.objects.get(id=model_id)
+            exam = model
             if kwargs.get('questions'):
-                exam.questions.set([kwargs.get('questions')] if not isinstance(kwargs.get('questions'),
-                                                                               col_abc.Iterable) else kwargs.get(
-                    'questions'))
+                exam.questions.set(kwargs.get('questions').all())
             exam.save()
         except ObjectDoesNotExist as e:
             raise InvalidParamError('Given exam id does not exist')
@@ -88,13 +86,15 @@ class SolvedExamRepository(BaseRepository):
         self._model_class.objects.create(exam=exam, user=user, date=datetime.now())
 
 
-    def update_model(self, model_id, **kwargs):
-        solved_exam = self._model_class.objects.get(model_id)
-        if kwargs.get('user') == solved_exam.exam.owner.username:
+    def update_model(self, model, **kwargs):
+        if kwargs.get('user') != model.exam.owner.username:
             raise PermissionDenied('Only user can grade')
         if kwargs.get('grade'):
-            solved_exam.final_grade = kwargs.get('grade)')
-        return solved_exam
+            model.final_grade = float(kwargs.get('grade'))
+        if kwargs.get('questions'):
+            model.exam.questions.set(kwargs.get('questions').all())
+        model.save()
+        return model
 
 class AnswerRepository(BaseRepository):
 

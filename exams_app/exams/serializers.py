@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from exams_app.exams.models import QuestionType, AnswerPossibility, Question, Answer, User, Exam
+from exams_app.exams.models import QuestionType, AnswerPossibility, Question, Answer, User, Exam, SolvedExam
 
 
 class QuestionTypeSerializer(serializers.ModelSerializer):
@@ -46,3 +46,10 @@ class ExamSerializer(serializers.ModelSerializer):
     class Meta:
         model = Exam
         fields = ('questions', 'owner','pk')
+
+class SolvedExamSerializer(serializers.ModelSerializer):
+
+
+    class Meta:
+        model = SolvedExam
+        fields = ('pk','final_grade', )

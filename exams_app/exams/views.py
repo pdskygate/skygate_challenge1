@@ -7,7 +7,7 @@ from exams_app.exams.exceptions import InvalidParamError
 from exams_app.exams.models import Exam, User, Question, SolvedExam, Answer
 from exams_app.exams.repositories import ExamRepository, BaseRepository, SolvedExamRepository, AnswerRepository
 from exams_app.exams.response_builder import ResponseBuilder
-from exams_app.exams.serializers import ExamSerializer
+from exams_app.exams.serializers import ExamSerializer, SolvedExamSerializer
 
 
 class ParamValidatorMixin(object):
@@ -19,8 +19,8 @@ class ParamValidatorMixin(object):
     def valid_params(self, actual_params):
         if not self.valid_definitions:
             raise APIException('Validation not definied')
-        valid_names = [name for name, type in self.valid_definitions.items()]
-        actual_names = actual_params.keys()
+        valid_names = [name for name, type in self.valid_definitions.items()] + ['csrfmiddlewaretoken']
+        actual_names = list(actual_params.keys())
         if len(set(actual_names) - set(valid_names)) > 0:
             raise InvalidParamError(f'Valid params {valid_names} , given params {actual_names}')
         for key, value in actual_params.items():
@@ -77,13 +77,22 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
     def update(self, request, *args, **kwargs):
         self.valid_definitions.update({
             'q': list,
-            'id': int
+            'pk': int
         })
-        params = request.POST.dict()
-        params.update({'q': request.POST.getlist('q')})
+        params = {
+            'pk': self.kwargs.get('pk')
+        }
+        params.update(request.data)
         self.valid_params(params)
         exam_repo = ExamRepository(Exam)
-        exam = exam_repo.update_model(model_id=params.pop('id'), **params)
+        exam = exam_repo.select_related(params.pop('pk'))
+        questions = params.get('q')
+        q_repo = BaseRepository(Question)
+        if questions:
+            q_set = q_repo.filter(id=questions[0])
+            for q_id in questions[1:]:
+                q_set = q_set | q_repo.filter(id=q_id)
+            exam = exam_repo.update_model(exam, user=request.user.username, questions=q_set)
         return ResponseBuilder(self.serializer_class(exam).data).build()
 
     def destroy(self, request, **kwargs):
@@ -101,15 +110,18 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
 class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
     permission_classes = (IsAuthenticated,)
     authentication_classes = (BasicAuthentication,)
+    serializer_class = SolvedExamSerializer
     valid_definitions = {
 
     }
+    def get_queryset(self):
+        return SolvedExam.objects.all()
 
     def create(self, request, *args, **kwargs):
-        # contract agrement should be more strict
+        # contract agreement should be more strict
         self.valid_definitions.update({
             'exam_id': int,
-            'answers': dict
+            'answers': dict,
         })
         params = request.data
         self.valid_params(params)
@@ -120,3 +132,20 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
             AnswerRepository(Answer).create_model(solved,question, params.get('answers').get(str(question.id),''))
 
         return ResponseBuilder('Exam solved, wait for graduation').build()
+
+    def update(self, request, *args, **kwargs):
+        # contract agreement should be more strict
+        self.valid_definitions.update({
+            'pk': int,
+            'final_grade': float
+        })
+        params = {
+            'pk': self.kwargs.get('pk')
+        }
+        params.update(request.data)
+        self.valid_params(params)
+        solvedE_repo = SolvedExamRepository(SolvedExam)
+        solved_exam = solvedE_repo.select_related(params.get('pk'))
+        if params.get('final_grade'):
+            solvedE_repo.update_model(solved_exam, user=request.user.username, grade=params.get('final_grade'))
+        return ResponseBuilder(self.serializer_class(solved_exam).data).build()
