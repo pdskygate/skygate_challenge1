@@ -15,11 +15,12 @@ Including another URLconf
 """
 from django.urls import path, include
 from rest_framework import routers
-from exams_app.exams.views import ExamManagementView, SolveExamView, QuestionView
+from exams_app.exams.views import ExamManagementView, SolveExamView, QuestionView, QuestionUpdateView
 
 router = routers.DefaultRouter()
 router.register('exam', ExamManagementView, basename='exam')
 router.register('question', QuestionView, basename='question')
+router.register('question_update', QuestionUpdateView, basename='question_update')
 router.register('solve_exam', SolveExamView, basename='solve_exam')
 
 urlpatterns = [

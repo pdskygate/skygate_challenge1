@@ -1,7 +1,7 @@
 from rest_framework import viewsets
 from rest_framework.authentication import BasicAuthentication
 from rest_framework.exceptions import APIException
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 from exams_app.exams.exceptions import InvalidParamError
 from exams_app.exams.models import Exam, User, Question, SolvedExam, Answer
@@ -45,6 +45,7 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
     def get_queryset(self):
         return Exam.objects.all()
 
+    # exam?page_size = 10 mandatory
     def list(self, request, **kwargs):
         self.valid_definitions.update({
             'id': int,
@@ -58,17 +59,20 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
             paginator = BasePaginator()
             if params.get('page_size'):
                 paginator.page_size = params.get('page_size')
-            paginated_qs = paginator.paginate_queryset(ExamRepository(Exam).filter(**params).fetch_related_all(), request)
+            paginated_qs = paginator.paginate_queryset(ExamRepository(Exam).filter(**params).fetch_related_all(),
+                                                       request)
             return ResponseBuilder(
                 self.serializer_class(paginated_qs, many=True).data, paginator
             ).paginated_response().build()
         except Exam.DoesNotExist as e:
             raise InvalidParamError(f'Exam {e}, does not exist')
 
+    # {
+    #  "q": [1,2,3]
+    # }
     def create(self, request, *args, **kwargs):
         self.valid_definitions.update({'q': list})
-        params = request.POST.dict()
-        params.update({'q': request.POST.getlist('q')})
+        params = request.data
         self.valid_params(params)
 
         exam_repo = ExamRepository(Exam)
@@ -85,6 +89,9 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
 
         return ResponseBuilder(self.serializer_class(exam).data).build()
 
+    # {
+    #     "q": [1]
+    # }
     def update(self, request, *args, **kwargs):
         self.valid_definitions.update({
             'q': list,
@@ -96,7 +103,7 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
         params.update(request.data)
         self.valid_params(params)
         exam_repo = ExamRepository(Exam)
-        exam = exam_repo.select_related(params.pop('pk'))
+        exam = exam_repo.filter(id=params.pop('pk')).fetch_related()
         questions = params.get('q')
         q_repo = BaseRepository(Question)
         if questions:
@@ -105,11 +112,12 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
             exam = exam_repo.update_model(exam, user=request.user.username, questions=q_repo.fetch_all())
         return ResponseBuilder(self.serializer_class(exam).data).build()
 
+    # /exam/{pk}/
     def destroy(self, request, **kwargs):
         exam_repo = ExamRepository(Exam)
         exam_id = self.kwargs.get('pk')
         try:
-            exam_repo.delete_model(exam_id)
+            exam_repo.delete_model(exam_id, user=request.user.username)
         except Exam.DoesNotExist as e:
             raise InvalidParamError('Exam with given id not exists')
 
@@ -127,6 +135,7 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
     def get_queryset(self):
         return Answer.objects.all()
 
+    # solve_exam?exam_id=3&user_name=admin
     def list(self, request, *args, **kwargs):
         self.valid_definitions.update({
             'user_name': str,
@@ -136,9 +145,14 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
         })
         params = request.query_params.dict()
         answers = AnswerRepository(Answer).filter(solved_exam__exam_id=params.get('exam_id'),
-                                                  solved_exam__user__username=params.get('user_name')).fetch_related_all()
+                                                  solved_exam__user__username=params.get(
+                                                      'user_name')).fetch_related_all()
         return ResponseBuilder(AnswerSerializer(answers, many=True).data).build()
 
+    # {
+    # 	"exam_id":24,
+    # 	"answers": {"1":1}
+    # }
     def create(self, request, *args, **kwargs):
         # contract agreement should be more strict
         self.valid_definitions.update({
@@ -155,6 +169,10 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
 
         return ResponseBuilder(f'Exam solved, wait for graduation. Possible result {solved.possible_grade}').build()
 
+    # {
+    # "final_grade":24
+    # }
+    #
     def update(self, request, *args, **kwargs):
         # contract agreement should be more strict
         self.valid_definitions.update({
@@ -184,6 +202,7 @@ class QuestionView(viewsets.ModelViewSet, ParamValidatorMixin):
     def get_queryset(self):
         return BaseRepository(Question).filter()
 
+    # /question?page_size=2
     def list(self, request, *args, **kwarg):
         self.valid_definitions.update({
             'id': int,
@@ -201,6 +220,20 @@ class QuestionView(viewsets.ModelViewSet, ParamValidatorMixin):
             self.serializer_class(paginated, many=True).data, paginator
         ).paginated_response().build()
 
+
+class QuestionUpdateView(QuestionView):
+    permission_classes = (IsAdminUser,)
+    authentication_classes = (BasicAuthentication,)
+    serializer_class = QuestionSerializer
+    valid_definitions = {
+
+    }
+
+    # {
+    #    "max_grade": 12,
+    #    "correct_answer": 1,
+    #    "one_of_poss": true
+    # }
     def update(self, request, *args, **kwargs):
         self.valid_definitions.update({
             'max_grade': float,

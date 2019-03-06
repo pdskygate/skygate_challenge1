@@ -44,7 +44,7 @@ class Question(models.Model):
     text = models.CharField(max_length=250, null=True, blank=True)
     question_type = models.ForeignKey(QuestionType, on_delete=models.CASCADE, null=True, blank=True)
 
-    answer_possibilities = models.ManyToManyField(AnswerPossibility, null=True, blank=True)
+    answer_possibilities = models.ManyToManyField(AnswerPossibility, blank=True)
     correct_answer = models.CharField(max_length=300, blank=True, null=True)
     correct_possibility = models.ForeignKey(AnswerPossibility, null=True, blank=True, on_delete=models.DO_NOTHING,
                                             related_name='default_answer')
@@ -60,7 +60,7 @@ class Exam(models.Model):
         verbose_name_plural = _('Exam')
 
     questions = models.ManyToManyField(Question, verbose_name=("Exams tasks"))
-    owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
+    owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.DO_NOTHING)
 
 
 class SolvedExam(models.Model):
