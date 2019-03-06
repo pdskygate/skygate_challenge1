@@ -34,7 +34,7 @@ class ResponseBuilder(object):
         self.base_response.get('result')[key] = value
         return self
 
-    def build_paginated_response(self):
+    def paginated_response(self):
         page_data = self.paginator.get_counts()
         self.base_response.get('result')['count'] = page_data.get('count')
         self.base_response.get('result')['pages'] = page_data.get('pages')

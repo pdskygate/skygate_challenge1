@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from exams_app.exams.exceptions import InvalidParamError
 from exams_app.exams.models import Exam, User, Question, SolvedExam, Answer
 from exams_app.exams.repositories import ExamRepository, BaseRepository, SolvedExamRepository, AnswerRepository
-from exams_app.exams.response_builder import ResponseBuilder
+from exams_app.exams.response_builder import ResponseBuilder, BasePaginator
 from exams_app.exams.serializers import ExamSerializer, SolvedExamSerializer, AnswerSerializer
 
 
@@ -16,6 +16,10 @@ class ParamValidatorMixin(object):
     valid_definitions = None
 
     def valid_params(self, actual_params):
+        if 'page' in actual_params:
+            actual_params.pop('page')
+        if 'page_size' in actual_params:
+            actual_params.pop('page_size')
         if not self.valid_definitions:
             raise APIException('Validation not definied')
         valid_names = [name for name, type in self.valid_definitions.items()] + ['csrfmiddlewaretoken']
@@ -42,14 +46,22 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
         return Exam.objects.all()
 
     def list(self, request, **kwargs):
-        self.valid_definitions.update({'id': int})
+        self.valid_definitions.update({
+            'id': int,
+            'page_size': int,
+            'page': int
+        })
 
-        params = {}
+        params = request.query_params.dict()
         self.valid_params(params)
         try:
+            paginator = BasePaginator()
+            if params.get('page_size'):
+                paginator.page_size = params.get('page_size')
+            paginated_qs = paginator.paginate_queryset(ExamRepository(Exam).filter(**params).fetch_all(), request)
             return ResponseBuilder(
-                self.serializer_class(ExamRepository(Exam).filter(**params).fetch_all(), many=True).data
-            ).build()
+                self.serializer_class(paginated_qs, many=True).data, paginator
+            ).paginated_response().build()
         except Exam.DoesNotExist as e:
             raise InvalidParamError(f'Exam {e}, does not exist')
 
@@ -119,6 +131,8 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
         self.valid_definitions.update({
             'user_name': str,
             'exam_id': int,
+            'page_size': int,
+            'page': int
         })
         params = request.query_params.dict()
         answers = AnswerRepository(Answer).filter(solved_exam__exam_id=params.get('exam_id'),
