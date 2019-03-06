@@ -7,7 +7,7 @@ from exams_app.exams.exceptions import InvalidParamError
 from exams_app.exams.models import Exam, User, Question, SolvedExam, Answer
 from exams_app.exams.repositories import ExamRepository, BaseRepository, SolvedExamRepository, AnswerRepository
 from exams_app.exams.response_builder import ResponseBuilder
-from exams_app.exams.serializers import ExamSerializer, SolvedExamSerializer
+from exams_app.exams.serializers import ExamSerializer, SolvedExamSerializer, AnswerSerializer
 
 
 class ParamValidatorMixin(object):
@@ -122,8 +122,8 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
         })
         params = request.query_params.dict()
         answers = AnswerRepository(Answer).filter(solved_exam__exam_id=params.get('exam_id'),
-                                                  solved_exam__user__username=request.user).fetch_all()
-        # answers
+                                                  solved_exam__user__username=params.get('user_name')).fetch_all()
+        return ResponseBuilder(AnswerSerializer(answers, many=True).data).build()
 
     def create(self, request, *args, **kwargs):
         # contract agreement should be more strict

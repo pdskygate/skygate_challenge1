@@ -23,6 +23,9 @@ class AnswerPossibility(models.Model):
     code = models.CharField(max_length=20)
     value = models.CharField(max_length=100)
 
+    def __str__(self):
+        return self.value
+
 
 class QuestionType(models.Model):
     class Meta:
@@ -94,7 +97,7 @@ class Answer(models.Model):
             return ''
 
     def set_value(self, type, value):
-
+        type = type.type
         if type == QuestionTypeEnum.TEXT.value:
             self.text_answer = value
         elif type == QuestionTypeEnum.BOOLEAN.value:

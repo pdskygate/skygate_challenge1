@@ -30,7 +30,7 @@ class AnswerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Answer
-        fields = ('number_value', 'binary_answer', 'text_answer')
+        fields = ('number_value', 'binary_answer', 'text_answer', 'question', 'chosen_value')
 
 
 class UserSerializer(serializers.ModelSerializer):

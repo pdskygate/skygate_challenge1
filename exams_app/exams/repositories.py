@@ -100,7 +100,7 @@ class SolvedExamRepository(BaseRepository):
         if self._model_class.objects.filter(exam=exam, user=user).count() > 0:
             raise SolvingError('Exam already solved by the user')
 
-        self._model_class.objects.create(exam=exam, user=user, date=datetime.now())
+        return self._model_class.objects.create(exam=exam, user=user, date=datetime.now())
 
 
     def update_model(self, model, **kwargs):
