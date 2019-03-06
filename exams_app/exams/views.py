@@ -1,7 +1,7 @@
 from rest_framework import viewsets
 from rest_framework.authentication import BasicAuthentication
 from rest_framework.exceptions import APIException
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 from exams_app.exams.exceptions import InvalidParamError
 from exams_app.exams.models import Exam, User, Question, SolvedExam, Answer
@@ -135,6 +135,7 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
     def get_queryset(self):
         return Answer.objects.all()
 
+    # solve_exam?exam_id=3&user_name=admin
     def list(self, request, *args, **kwargs):
         self.valid_definitions.update({
             'user_name': str,
@@ -148,6 +149,10 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
                                                       'user_name')).fetch_related_all()
         return ResponseBuilder(AnswerSerializer(answers, many=True).data).build()
 
+    # {
+    # 	"exam_id":24,
+    # 	"answers": {"1":1}
+    # }
     def create(self, request, *args, **kwargs):
         # contract agreement should be more strict
         self.valid_definitions.update({
@@ -164,6 +169,10 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
 
         return ResponseBuilder(f'Exam solved, wait for graduation. Possible result {solved.possible_grade}').build()
 
+    # {
+    # "final_grade":24
+    # }
+    #
     def update(self, request, *args, **kwargs):
         # contract agreement should be more strict
         self.valid_definitions.update({
@@ -193,6 +202,7 @@ class QuestionView(viewsets.ModelViewSet, ParamValidatorMixin):
     def get_queryset(self):
         return BaseRepository(Question).filter()
 
+    # /question?page_size=2
     def list(self, request, *args, **kwarg):
         self.valid_definitions.update({
             'id': int,
@@ -210,6 +220,20 @@ class QuestionView(viewsets.ModelViewSet, ParamValidatorMixin):
             self.serializer_class(paginated, many=True).data, paginator
         ).paginated_response().build()
 
+
+class QuestionUpdateView(QuestionView):
+    permission_classes = (IsAdminUser,)
+    authentication_classes = (BasicAuthentication,)
+    serializer_class = QuestionSerializer
+    valid_definitions = {
+
+    }
+
+    # {
+    #    "max_grade": 12,
+    #    "correct_answer": 1,
+    #    "one_of_poss": true
+    # }
     def update(self, request, *args, **kwargs):
         self.valid_definitions.update({
             'max_grade': float,
