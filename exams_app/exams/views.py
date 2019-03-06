@@ -58,7 +58,7 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
             paginator = BasePaginator()
             if params.get('page_size'):
                 paginator.page_size = params.get('page_size')
-            paginated_qs = paginator.paginate_queryset(ExamRepository(Exam).filter(**params).fetch_all(), request)
+            paginated_qs = paginator.paginate_queryset(ExamRepository(Exam).filter(**params).fetch_related_all(), request)
             return ResponseBuilder(
                 self.serializer_class(paginated_qs, many=True).data, paginator
             ).paginated_response().build()
@@ -136,7 +136,7 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
         })
         params = request.query_params.dict()
         answers = AnswerRepository(Answer).filter(solved_exam__exam_id=params.get('exam_id'),
-                                                  solved_exam__user__username=params.get('user_name')).fetch_all()
+                                                  solved_exam__user__username=params.get('user_name')).fetch_related_all()
         return ResponseBuilder(AnswerSerializer(answers, many=True).data).build()
 
     def create(self, request, *args, **kwargs):
@@ -167,7 +167,7 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
         params.update(request.data)
         self.valid_params(params)
         solvedE_repo = SolvedExamRepository(SolvedExam)
-        solved_exam = solvedE_repo.filter(id=params.get('pk')).fetch()
+        solved_exam = solvedE_repo.filter(id=params.get('pk')).fetch_related()
         if params.get('final_grade'):
             solvedE_repo.update_model(solved_exam, user=request.user.username, grade=params.get('final_grade'))
         return ResponseBuilder(self.serializer_class(solved_exam).data).build()
@@ -196,7 +196,7 @@ class QuestionView(viewsets.ModelViewSet, ParamValidatorMixin):
         paginator = BasePaginator()
         if params.get('page_size'):
             paginator.page_size = params.get('page_size')
-        paginated = paginator.paginate_queryset(self.get_queryset().fetch_all(), request)
+        paginated = paginator.paginate_queryset(self.get_queryset().fetch_related_all(), request)
         return ResponseBuilder(
             self.serializer_class(paginated, many=True).data, paginator
         ).paginated_response().build()
