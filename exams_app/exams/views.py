@@ -7,7 +7,7 @@ from exams_app.exams.exceptions import InvalidParamError
 from exams_app.exams.models import Exam, User, Question, SolvedExam, Answer
 from exams_app.exams.repositories import ExamRepository, BaseRepository, SolvedExamRepository, AnswerRepository
 from exams_app.exams.response_builder import ResponseBuilder, BasePaginator
-from exams_app.exams.serializers import ExamSerializer, SolvedExamSerializer, AnswerSerializer
+from exams_app.exams.serializers import ExamSerializer, SolvedExamSerializer, AnswerSerializer, QuestionSerializer
 
 
 class ParamValidatorMixin(object):
@@ -171,3 +171,59 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
         if params.get('final_grade'):
             solvedE_repo.update_model(solved_exam, user=request.user.username, grade=params.get('final_grade'))
         return ResponseBuilder(self.serializer_class(solved_exam).data).build()
+
+
+class QuestionView(viewsets.ModelViewSet, ParamValidatorMixin):
+    permission_classes = (IsAuthenticated,)
+    authentication_classes = (BasicAuthentication,)
+    serializer_class = QuestionSerializer
+    valid_definitions = {
+
+    }
+
+    def get_queryset(self):
+        return BaseRepository(Question).filter()
+
+    def list(self, request, *args, **kwarg):
+        self.valid_definitions.update({
+            'id': int,
+            'page_size': int,
+            'page': int
+        })
+
+        params = request.query_params.dict()
+        self.valid_params(params)
+        paginator = BasePaginator()
+        if params.get('page_size'):
+            paginator.page_size = params.get('page_size')
+        paginated = paginator.paginate_queryset(self.get_queryset().fetch_all(), request)
+        return ResponseBuilder(
+            self.serializer_class(paginated, many=True).data, paginator
+        ).paginated_response().build()
+
+    def update(self, request, *args, **kwargs):
+        self.valid_definitions.update({
+            'max_grade': float,
+            'correct_answer': str,
+            'one_of_poss': bool,
+            'pk': int
+        })
+        params = request.data
+        params.update({'pk': self.kwargs.get('pk')})
+        self.valid_params(params)
+        repo = BaseRepository(Question)
+        question = repo.find_by_id(params.get('pk'))
+        if params.get('max_grade'):
+            repo.update_model(question, max_grade=params.get('max_grade'))
+        one_of_poss = bool(params.get('one_of_poss'))
+        correct_a = params.get('correct_answer')
+        if one_of_poss:
+            try:
+                correct_a = int(correct_a)
+            except ValueError as e:
+                raise InvalidParamError('One of possible answer have to be an int')
+
+            question = repo.update_model(question, correct_possibility_id=correct_a)
+        elif correct_a:
+            question = repo.update_model(question, correct_answer=correct_a)
+        return ResponseBuilder(self.serializer_class(question).data).build()

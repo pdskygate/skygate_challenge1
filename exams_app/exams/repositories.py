@@ -41,8 +41,12 @@ class BaseRepository(AbstractReposository):
     def crate_model(self, **kwargs):
         raise NotImplementedError('Cannot create, use specified repository')
 
-    def update_model(self, model_id, **kwargs):
-        raise NotImplementedError('Cannot update, use specified repository')
+    def update_model(self, model, **kwargs):
+        for key, value in kwargs.items():
+            if hasattr(model, key):
+                setattr(model, key, value)
+        model.save()
+        return model
 
     def delete_model(self, model_id):
         self._model_class.objects.get(id=model_id).delete()

@@ -16,12 +16,20 @@ class AnswerPossibilitySerializer(serializers.ModelSerializer):
 
 
 class QuestionSerializer(serializers.ModelSerializer):
-    question_type = QuestionTypeSerializer()
-    answer_possibilities = AnswerPossibilitySerializer(many=True)
+    question_type = QuestionTypeSerializer(read_only=True)
+    answer_possibilities = AnswerPossibilitySerializer(many=True, read_only=True)
+    correct_answer = serializers.SerializerMethodField()
+    text = serializers.CharField(read_only=True)
 
     class Meta:
         model = Question
-        fields = ('text', 'question_type', 'answer_possibilities')
+        fields = ('text', 'question_type', 'answer_possibilities', 'correct_answer', 'max_grade')
+        read_only_fields = ('text', 'question_type', 'answer_possibilities')
+
+    def get_correct_answer(self, obj):
+        if obj.correct_possibility is not None:
+            return obj.correct_possibility.value
+        return obj.correct_answer
 
 
 class AnswerSerializer(serializers.ModelSerializer):
@@ -45,11 +53,10 @@ class ExamSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Exam
-        fields = ('questions', 'owner','pk')
+        fields = ('questions', 'owner', 'pk')
+
 
 class SolvedExamSerializer(serializers.ModelSerializer):
-
-
     class Meta:
         model = SolvedExam
-        fields = ('pk','final_grade', )
+        fields = ('pk', 'final_grade',)

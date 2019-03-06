@@ -4,6 +4,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 
+
 class QuestionTypeEnum(Enum):
     TEXT = 'text'
     NUMBER = 'number'
@@ -40,10 +41,14 @@ class Question(models.Model):
         verbose_name = _('Question')
         verbose_name_plural = _('Questions')
 
-    text = models.CharField(max_length=250)
-    question_type = models.ForeignKey(QuestionType, on_delete=models.CASCADE)
+    text = models.CharField(max_length=250, null=True, blank=True)
+    question_type = models.ForeignKey(QuestionType, on_delete=models.CASCADE, null=True, blank=True)
 
-    answer_possibilities = models.ManyToManyField(AnswerPossibility)
+    answer_possibilities = models.ManyToManyField(AnswerPossibility, null=True, blank=True)
+    correct_answer = models.CharField(max_length=300, blank=True, null=True)
+    correct_possibility = models.ForeignKey(AnswerPossibility, null=True, blank=True, on_delete=models.DO_NOTHING,
+                                            related_name='default_answer')
+    max_grade = models.FloatField(default=5, null=True)
 
     def __str__(self):
         return self.text
@@ -55,7 +60,6 @@ class Exam(models.Model):
         verbose_name_plural = _('Exam')
 
     questions = models.ManyToManyField(Question, verbose_name=("Exams tasks"))
-    # final_grade = models.FloatField(blank=True, null=True)
     owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
 
 
@@ -68,6 +72,7 @@ class SolvedExam(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
     final_grade = models.FloatField(blank=True, null=True)
+    possible_grade = models.FloatField(default=0)
 
 
 class Answer(models.Model):
@@ -106,7 +111,6 @@ class Answer(models.Model):
             self.number_value = value
         else:
             self.chosen_value = AnswerPossibility.objects.get(id=int(value))
-
 
     def __str__(self):
         return self.get_value()
