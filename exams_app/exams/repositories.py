@@ -6,7 +6,7 @@ from collections import abc as col_abc
 from rest_framework.exceptions import PermissionDenied
 
 from exams_app.exams.exceptions import InvalidParamError, SolvingError
-from exams_app.exams.models import Exam
+from exams_app.exams.models import Exam, QuestionTypeEnum
 
 
 class AbstractReposository(metaclass=abc.ABCMeta):
@@ -106,7 +106,6 @@ class SolvedExamRepository(BaseRepository):
 
         return self._model_class.objects.create(exam=exam, user=user, date=datetime.now())
 
-
     def update_model(self, model, **kwargs):
         if kwargs.get('user') != model.exam.owner.username:
             raise PermissionDenied('Only user can grade')
@@ -117,15 +116,17 @@ class SolvedExamRepository(BaseRepository):
         model.save()
         return model
 
-class AnswerRepository(BaseRepository):
 
+class AnswerRepository(BaseRepository):
 
     def create_model(self, s_exam, question, value):
         answer = self._model_class()
         answer.solved_exam = s_exam
         answer.question = question
         answer.set_value(question.question_type, value)
+        if question.question_type.type == QuestionTypeEnum.POSSIBILITY.value and question.correct_possibility.id == value:
+            answer.solved_exam.possible_grade += question.max_grade
+        if question.correct_answer == value:
+            answer.solved_exam.possible_grade += question.max_grade
         answer.save()
         return answer
-
-

@@ -148,12 +148,12 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
         params = request.data
         self.valid_params(params)
         solvedE_repo = SolvedExamRepository(SolvedExam)
-        exam = ExamRepository(Exam).find_by_id(params.get('exam_id'))
+        exam = ExamRepository(Exam).filter(id=params.get('exam_id')).fetch_related()
         solved = solvedE_repo.crate_model(exam=exam, user=request.user)
         for question in exam.questions.all():
             AnswerRepository(Answer).create_model(solved, question, params.get('answers').get(str(question.id), ''))
 
-        return ResponseBuilder('Exam solved, wait for graduation').build()
+        return ResponseBuilder(f'Exam solved, wait for graduation. Possible result {solved.possible_grade}').build()
 
     def update(self, request, *args, **kwargs):
         # contract agreement should be more strict
