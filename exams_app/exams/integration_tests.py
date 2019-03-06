@@ -36,7 +36,7 @@ class CRUDTestCase(TestCase):
         q_count = e.questions.all().count()
 
         #when
-        exam_repo.update_model(e.id, questions=Question.objects.first())
+        exam_repo.update_model(e, questions=Question.objects.filter(id=1))
 
         #then
         self.assertNotEqual(q_count, len(Exam.objects.get(id=1).questions.all()))
@@ -56,7 +56,7 @@ class CRUDTestCase(TestCase):
         q_repo = BaseRepository(Question)
 
         # when
-        q_set = q_repo.filter(id=1)
+        q_set = q_repo.filter(id=1).fetch_all()
 
         # then
         self.assertEqual(q_set.count(), 1)
