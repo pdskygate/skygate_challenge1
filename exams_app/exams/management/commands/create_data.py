@@ -12,7 +12,7 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
 
         try:
-            admin = User.objects.create_superuser(username='superuser', password='user')
+            admin = User.objects.create_superuser(username='superuser', password='user', email='test@gmail.com')
             u1 = User.objects.create_user(username='user1', password='user')
             u2 = User.objects.create_user(username='user2', password='user')
             u3 = User.objects.create_user(username='user3', password='user')
