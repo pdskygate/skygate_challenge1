@@ -48,7 +48,7 @@ class BaseRepository(AbstractReposository):
         model.save()
         return model
 
-    def delete_model(self, model_id):
+    def delete_model(self, model_id, **kwargs):
         self._model_class.objects.get(id=model_id).delete()
 
     def find_by_id(self, model_id):
@@ -89,6 +89,8 @@ class ExamRepository(BaseRepository):
 
     def update_model(self, model, **kwargs):
         try:
+            if kwargs.get('user') != model.owner.username:
+                raise PermissionDenied('Only owner can update')
             exam = model
             if kwargs.get('questions'):
                 exam.questions.set(kwargs.get('questions').all())
@@ -96,6 +98,12 @@ class ExamRepository(BaseRepository):
         except ObjectDoesNotExist as e:
             raise InvalidParamError('Given exam id does not exist')
         return exam
+
+    def delete_model(self, model_id, **kwargs):
+        model = self._model_class.objects.get(id=model_id)
+        if kwargs.get('user') != model.owner.username:
+            raise PermissionDenied('Only owner can delete')
+        model.delete()
 
 
 class SolvedExamRepository(BaseRepository):
@@ -108,7 +116,7 @@ class SolvedExamRepository(BaseRepository):
 
     def update_model(self, model, **kwargs):
         if kwargs.get('user') != model.exam.owner.username:
-            raise PermissionDenied('Only user can grade')
+            raise PermissionDenied('Only owner can grade')
         if kwargs.get('grade'):
             model.final_grade = float(kwargs.get('grade'))
         if kwargs.get('questions'):
