@@ -27,6 +27,13 @@ class AnswerPossibility(models.Model):
     def __str__(self):
         return self.value
 
+class TModel(models.Model):
+
+    test1 = models.CharField(max_length=15)
+
+
+class TModel2(TModel):
+    test2 = models.CharField(max_length=15)
 
 class QuestionType(models.Model):
     class Meta:
