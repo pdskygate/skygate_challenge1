@@ -47,7 +47,7 @@ class Question(models.Model):
     answer_possibilities = models.ManyToManyField(AnswerPossibility, blank=True)
     correct_answer = models.CharField(max_length=300, blank=True, null=True)
     correct_possibility = models.ForeignKey(AnswerPossibility, null=True, blank=True, on_delete=models.DO_NOTHING,
-                                            related_name='default_answer')
+                                            related_name='related_question')
     max_grade = models.FloatField(default=5, null=True)
 
     def __str__(self):
