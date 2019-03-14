@@ -285,9 +285,10 @@ class QuestionUpdateView(QuestionView):
             try:
                 correct_a = int(correct_a)
             except ValueError as e:
-                raise InvalidParamError('One of possible answer have to be an int')
+                raise InvalidParamError('One of possible answer have to be an id')
 
-            question.correct_possibility = correct_a
+            question.correct_possibility_id = correct_a
         elif correct_a:
             question.correct_answer = correct_a
+        question.save()
         return ResponseBuilder(self.serializer_class(question).data).build()
