@@ -6,6 +6,7 @@ from rest_framework.authentication import BasicAuthentication
 from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
+from exams_app.exam_permissions import IsReviewer
 from exams_app.exams.exceptions import InvalidParamError
 from exams_app.exams.models import Exam, User, Question, SolvedExam, Answer, QuestionTypeEnum
 from exams_app.exams.response_builder import ResponseBuilder, BasePaginator
@@ -252,7 +253,7 @@ class QuestionView(viewsets.ModelViewSet, ParamValidationMixin):
 
 
 class QuestionUpdateView(QuestionView):
-    permission_classes = (IsAdminUser,)
+    permission_classes = (IsReviewer,)
     authentication_classes = (BasicAuthentication,)
     serializer_class = QuestionSerializer
     valid_definitions = {

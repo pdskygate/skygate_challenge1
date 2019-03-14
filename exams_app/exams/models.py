@@ -13,7 +13,9 @@ class QuestionTypeEnum(Enum):
 
 
 class User(AbstractUser):
-    pass
+
+    user = models.BooleanField('ordinary user of service', default=True)
+    reviewer = models.BooleanField('user that can change ', default=False)
 
 
 class AnswerPossibility(models.Model):
@@ -27,13 +29,6 @@ class AnswerPossibility(models.Model):
     def __str__(self):
         return self.value
 
-class TModel(models.Model):
-
-    test1 = models.CharField(max_length=15)
-
-
-class TModel2(TModel):
-    test2 = models.CharField(max_length=15)
 
 class QuestionType(models.Model):
     class Meta:
@@ -59,7 +54,7 @@ class Question(models.Model):
 
     def is_correct(self, value):
         if isinstance(value, bool):
-            return (True if self.correct_answer.lower() == 'yes' else False ) and value
+            return (True if self.correct_answer.lower() == 'yes' else False) and value
         return str(value).lower() == self.correct_answer.lower()
 
     def __str__(self):
