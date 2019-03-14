@@ -57,6 +57,11 @@ class Question(models.Model):
                                             related_name='related_question')
     max_grade = models.FloatField(default=5, null=True)
 
+    def is_correct(self, value):
+        if isinstance(value, bool):
+            return (True if self.correct_answer.lower() == 'yes' else False ) and value
+        return str(value).lower() == self.correct_answer.lower()
+
     def __str__(self):
         return self.text
 

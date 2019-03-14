@@ -1,4 +1,5 @@
 from collections import Iterable
+from datetime import datetime
 
 from rest_framework import viewsets
 from rest_framework.authentication import BasicAuthentication
@@ -21,7 +22,7 @@ class MultiQuestionQS(object):
             if not qs:
                 qs = Question.objects.filter(pk=q_id)
             else:
-                qs = qs | Question.objects.filter(pk=q_id)
+                qs = qs.union(Question.objects.filter(pk=q_id))
         return qs
 
     def valid_params(self, actual_params):
@@ -90,11 +91,10 @@ class ExamManagementView(viewsets.ModelViewSet, MultiQuestionQS):
 
         user = User.objects.get(username=request.user)
         exam = Exam()
-        # !
-        exam.questions.set([params.get('q')] if not isinstance(params.get('q'), Iterable) else params.get('q'))
         exam.owner = user
-        exam.save(update_fields=["questions"])
-
+        exam.save()
+        exam.questions.set([params.get('q')] if not isinstance(params.get('q'), Iterable) else params.get('q'))
+        exam.save()
         return ResponseBuilder(self.serializer_class(exam).data).build()
 
     # {
@@ -111,6 +111,8 @@ class ExamManagementView(viewsets.ModelViewSet, MultiQuestionQS):
         params.update(request.data)
         self.valid_params(params)
         exam = Exam.objects.select_related().get(id=params.pop('pk'))
+        if request.user.username != exam.owner.username:
+            raise PermissionDenied('Only owner can grade')
         questions = params.get('q')
         if questions:
             exam.questions.set(self.build_multiple_question_qs(questions).all())
@@ -121,7 +123,7 @@ class ExamManagementView(viewsets.ModelViewSet, MultiQuestionQS):
         exam_id = self.kwargs.get('pk')
         try:
             exam = Exam.objects.select_related().get(pk=exam_id)
-            if kwargs.get('user') != exam.owner.username:
+            if request.user.username != exam.owner.username:
                 raise PermissionDenied('Only owner can delete')
             exam.delete()
         except Exam.DoesNotExist as e:
@@ -173,19 +175,21 @@ class SolveExamView(viewsets.ModelViewSet, MultiQuestionQS):
         solved = SolvedExam()#.crate_model(exam=exam, user=request.user)
         solved.exam = exam
         solved.user = request.user
+        solved.date = datetime.now()
+        solved.save()
         for question in exam.questions.all():
             a = Answer()
             a.solved_exam = solved
             a.question = question
             value = params.get('answers').get(str(question.id), '')
             a.set_value(question.question_type, value)
-            if question.question_type.type == QuestionTypeEnum.POSSIBILITY.value and question.correct_possibility.id == value:
-                a.solved_exam.possible_grade += question.max_grade
-            if question.correct_answer == value:
-                a.solved_exam.possible_grade += question.max_grade
+            if question.question_type.type == QuestionTypeEnum.POSSIBILITY.value:
+                if question.correct_possibility.id == value:
+                    a.solved_exam.possible_grade += question.max_grade
+            else:
+                if question.is_correct(value):
+                    a.solved_exam.possible_grade += question.max_grade
             a.save()
-        solved.save()
-
         return ResponseBuilder(f'Exam solved, wait for graduation. Possible result {solved.possible_grade}').build()
 
 
@@ -205,13 +209,10 @@ class SolveExamView(viewsets.ModelViewSet, MultiQuestionQS):
         params.update(request.data)
         self.valid_params(params)
         solved_exam = SolvedExam.objects.select_related().get(pk=params.get('pk'))
-        if kwargs.get('user') != solved_exam.exam.owner.username:
+        if request.user.username != solved_exam.exam.owner.username:
             raise PermissionDenied('Only owner can grade')
-
         if params.get('final_grade'):
-            solved_exam.final_grade = float(params.get('grade'))
-        if params.get('questions'):
-            solved_exam.exam.questions.set(self.build_multiple_question_qs(params.get('questions')).all())
+            solved_exam.final_grade = float(params.get('final_grade'))
         solved_exam.save()
         return ResponseBuilder(self.serializer_class(solved_exam).data).build()
 
@@ -240,7 +241,7 @@ class QuestionView(viewsets.ModelViewSet, MultiQuestionQS):
         paginator = BasePaginator()
         if params.get('page_size'):
             paginator.page_size = params.get('page_size')
-        paginated = paginator.paginate_queryset(self.get_queryset().fetch_related_all(), request)
+        paginated = paginator.paginate_queryset(self.get_queryset().select_related(), request)
         return ResponseBuilder(
             self.serializer_class(paginated, many=True).data, paginator
         ).paginated_response().build()
