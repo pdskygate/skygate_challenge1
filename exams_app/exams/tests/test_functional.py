@@ -1,9 +1,11 @@
 # from django.contrib.auth.models import User
+from datetime import datetime
+
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from exams_app.exams.models import User, Exam, Question, SolvedExam
+from exams_app.exams.models import User, Exam, Question, SolvedExam, Answer
 
 
 class TestExamManagement(APITestCase):
@@ -214,9 +216,6 @@ class TestExamSolve(APITestCase):
             "exam_id": self.exam.id,
             "answers": {"1": 2}
         }
-        url = reverse('solve_exam-list')
-        self.client.login(username=user_name, password=user_password)
-        self.client.post(url, data=data, format='json')
 
         url = reverse('solve_exam-detail', kwargs={
             'pk': self.exam.id
@@ -224,15 +223,27 @@ class TestExamSolve(APITestCase):
 
         # when
         response = self.client.put(url, format='json')
+        self._solve_exam((user))
         # then
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-
         self.client.logout()
+        data = {'final_grade': 23}
         self.client.login(username=self.user_name, password=self.user_password)
         # when
-        response = self.client.put(url, format='json')
+        response = self.client.put(url, data=data, format='json')
         # then
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        pass
+    def _solve_exam(self, user):
+        solved = SolvedExam()
+        solved.exam = self.exam
+        solved.user = user
+        solved.date = datetime.now()
+        solved.save()
+        q = self.exam.questions.first()
+        a = Answer()
+        a.solved_exam = solved
+        a.question = q
+        a.set_value(q.question_type, 1)
+        a.save()
