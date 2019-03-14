@@ -8,15 +8,18 @@ from rest_framework.test import APITestCase
 from exams_app.exams.models import User, Exam, Question, SolvedExam, Answer
 
 
-class TestExamManagement(APITestCase):
+class BaseTest(APITestCase):
     fixtures = ['answer_possibility', 'question', 'question_type']
 
     def setUp(self):
-        self.user_name = 'testuser'
+        self.user_name = 'baseuser'
         self.user_password = 'testpass'
         self.user = User(username=self.user_name)
         self.user.set_password(self.user_password)
         self.user.save()
+
+
+class TestExamManagement(BaseTest):
 
     def test_create_exam(self):
         # given
@@ -86,16 +89,14 @@ class TestExamManagement(APITestCase):
         return exam, owner
 
 
-class TestQuestionUpdateView(APITestCase):
+class TestQuestionUpdateView(BaseTest):
     fixtures = ['answer_possibility', 'question', 'question_type']
 
     def setUp(self):
-        self.reviewer_name = 'testuser1'
-        self.reviewer_pass = 'testpass1'
-        self.reviewer = User(username=self.reviewer_name)
-        self.reviewer.reviewer = True
-        self.reviewer.set_password(self.reviewer_pass)
-        self.reviewer.save()
+        super(TestQuestionUpdateView, self).setUp()
+        self.user.reviewer = True
+        self.user.save()
+
 
     def test_user_permission(self):
         # given
@@ -118,7 +119,7 @@ class TestQuestionUpdateView(APITestCase):
 
         # when
         self.client.logout()
-        self.client.login(username=self.reviewer_name, password=self.reviewer_pass)
+        self.client.login(username=self.user_name, password=self.user_password)
         response = self.client.put(url, data={}, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -133,14 +134,8 @@ class TestQuestionUpdateView(APITestCase):
         a = q.correct_answer
         g = q.max_grade
 
-        # {
-        #    "max_grade": 12,
-        #    "correct_answer": 1,
-        #    "one_of_poss": true
-        # }
-
         # when
-        self.client.login(username=self.reviewer_name, password=self.reviewer_pass)
+        self.client.login(username=self.user_name, password=self.user_password)
         response = self.client.put(url, data=data, format='json')
         q = Question.objects.get(pk=pk)
         # then
@@ -159,7 +154,7 @@ class TestQuestionUpdateView(APITestCase):
         a = q.correct_possibility
 
         # when
-        self.client.login(username=self.reviewer_name, password=self.reviewer_pass)
+        self.client.login(username=self.user_name, password=self.user_password)
         response = self.client.put(url, data=data, format='json')
         q = Question.objects.get(pk=pk)
         # then
@@ -167,15 +162,11 @@ class TestQuestionUpdateView(APITestCase):
         self.assertNotEqual(a, q.correct_possibility)
 
 
-class TestExamSolve(APITestCase):
+class TestExamSolve(BaseTest):
     fixtures = ['answer_possibility', 'question', 'question_type']
 
     def setUp(self):
-        self.user_name = 'testuser'
-        self.user_password = 'testpass'
-        self.user = User(username=self.user_name)
-        self.user.set_password(self.user_password)
-        self.user.save()
+        super(TestExamSolve, self).setUp()
 
         self.exam = Exam()
         self.exam.owner = self.user
