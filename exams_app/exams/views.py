@@ -2,9 +2,9 @@ from collections import Iterable
 from datetime import datetime
 
 from rest_framework import viewsets
-from rest_framework.authentication import BasicAuthentication
+from rest_framework.authentication import BasicAuthentication, SessionAuthentication
 from rest_framework.exceptions import APIException, PermissionDenied
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 
 from exams_app.exam_permissions import IsReviewer
 from exams_app.exams.exceptions import InvalidParamError
@@ -52,7 +52,7 @@ class ParamValidationMixin(object):
 class ExamManagementView(viewsets.ModelViewSet, MultiQuestionQSMixin, ParamValidationMixin):
     serializer_class = ExamSerializer
     permission_classes = (IsAuthenticated,)
-    authentication_classes = (BasicAuthentication,)
+    authentication_classes = (SessionAuthentication,BasicAuthentication)
     valid_definitions = {
 
     }
@@ -138,7 +138,7 @@ class ExamManagementView(viewsets.ModelViewSet, MultiQuestionQSMixin, ParamValid
 
 class SolveExamView(viewsets.ModelViewSet, ParamValidationMixin):
     permission_classes = (IsAuthenticated,)
-    authentication_classes = (BasicAuthentication,)
+    authentication_classes = (SessionAuthentication,BasicAuthentication)
     serializer_class = SolvedExamSerializer
     valid_definitions = {
 
@@ -224,7 +224,7 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidationMixin):
 
 class QuestionView(viewsets.ModelViewSet, ParamValidationMixin):
     permission_classes = (IsAuthenticated,)
-    authentication_classes = (BasicAuthentication,)
+    authentication_classes = (SessionAuthentication,BasicAuthentication)
     serializer_class = QuestionSerializer
     valid_definitions = {
 
@@ -254,7 +254,7 @@ class QuestionView(viewsets.ModelViewSet, ParamValidationMixin):
 
 class QuestionUpdateView(QuestionView):
     permission_classes = (IsReviewer,)
-    authentication_classes = (BasicAuthentication,)
+    authentication_classes = (SessionAuthentication,BasicAuthentication)
     serializer_class = QuestionSerializer
     valid_definitions = {
 
