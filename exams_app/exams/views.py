@@ -7,7 +7,7 @@ from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 
 from exams_app.exam_permissions import IsReviewer
-from exams_app.exams.exceptions import InvalidParamError
+from exams_app.exams.exceptions import InvalidParamError, SolvingError
 from exams_app.exams.models import Exam, User, Question, SolvedExam, Answer, QuestionTypeEnum
 from exams_app.exams.response_builder import ResponseBuilder, BasePaginator
 from exams_app.exams.serializers import ExamSerializer, SolvedExamSerializer, AnswerSerializer, QuestionSerializer
@@ -175,8 +175,10 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidationMixin):
         })
         params = request.data
         self.valid_params(params)
-
         exam = Exam.objects.select_related().get(pk=params.get('exam_id'))
+        if exam.solvedexam_set.count() > 0:
+            raise SolvingError("exam already solved by user")
+
         solved = SolvedExam()#.crate_model(exam=exam, user=request.user)
         solved.exam = exam
         solved.user = request.user
@@ -195,6 +197,7 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidationMixin):
                 if question.is_correct(value):
                     a.solved_exam.possible_grade += question.max_grade
             a.save()
+        solved.save()
         return ResponseBuilder(f'Exam solved, wait for graduation. Possible result {solved.possible_grade}').build()
 
 

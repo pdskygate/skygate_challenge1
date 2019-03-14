@@ -3,7 +3,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from exams_app.exams.models import User, Exam, Question
+from exams_app.exams.models import User, Exam, Question, SolvedExam
 
 
 class TestExamManagement(APITestCase):
@@ -126,7 +126,7 @@ class TestQuestionUpdateView(APITestCase):
         url = reverse('question_update-detail', kwargs={
             'pk': pk
         })
-        data = {"max_grade": 12, 'correct_answer':'ala'}
+        data = {"max_grade": 12, 'correct_answer': 'ala'}
         q = Question.objects.get(pk=pk)
         a = q.correct_answer
         g = q.max_grade
@@ -137,11 +137,11 @@ class TestQuestionUpdateView(APITestCase):
         #    "one_of_poss": true
         # }
 
-        #when
+        # when
         self.client.login(username=self.reviewer_name, password=self.reviewer_pass)
         response = self.client.put(url, data=data, format='json')
         q = Question.objects.get(pk=pk)
-        #then
+        # then
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertNotEqual(a, q.correct_answer)
         self.assertNotEqual(g, q.max_grade)
@@ -152,16 +152,87 @@ class TestQuestionUpdateView(APITestCase):
         url = reverse('question_update-detail', kwargs={
             'pk': pk
         })
-        data = {"one_of_poss": True, 'correct_answer':3}
+        data = {"one_of_poss": True, 'correct_answer': 3}
         q = Question.objects.get(pk=pk)
         a = q.correct_possibility
 
-
-        #when
+        # when
         self.client.login(username=self.reviewer_name, password=self.reviewer_pass)
         response = self.client.put(url, data=data, format='json')
         q = Question.objects.get(pk=pk)
-        #then
+        # then
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertNotEqual(a, q.correct_possibility)
 
+
+class TestExamSolve(APITestCase):
+    fixtures = ['answer_possibility', 'question', 'question_type']
+
+    def setUp(self):
+        self.user_name = 'testuser'
+        self.user_password = 'testpass'
+        self.user = User(username=self.user_name)
+        self.user.set_password(self.user_password)
+        self.user.save()
+
+        self.exam = Exam()
+        self.exam.owner = self.user
+        self.exam.save()
+        self.exam.questions.set(Question.objects.all()[:1])
+        self.exam.save()
+
+    def test_solve(self):
+        # given
+        url = reverse('solve_exam-list')
+        self.client.login(username=self.user_name, password=self.user_password)
+        data = {
+            "exam_id": self.exam.id,
+            "answers": {"1": 2}
+        }
+        # when
+        response = self.client.post(url, data=data, format='json')
+
+        # then
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(Question.objects.get(pk=1).max_grade, SolvedExam.objects.get(exam__pk=self.exam.id,
+                                                                                      user__username=self.user_name).possible_grade)
+
+        # when secenod try to solve
+        response = self.client.post(url, data=data, format='json')
+        # then
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_grade(self):
+        # given
+        user_name = 'testuser1'
+        user_password = 'testpass'
+        user = User(username=user_name)
+        user.set_password(user_password)
+        user.save()
+
+        data = {
+            "exam_id": self.exam.id,
+            "answers": {"1": 2}
+        }
+        url = reverse('solve_exam-list')
+        self.client.login(username=user_name, password=user_password)
+        self.client.post(url, data=data, format='json')
+
+        url = reverse('solve_exam-detail', kwargs={
+            'pk': self.exam.id
+        })
+
+        # when
+        response = self.client.put(url, format='json')
+        # then
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+        self.client.logout()
+        self.client.login(username=self.user_name, password=self.user_password)
+        # when
+        response = self.client.put(url, format='json')
+        # then
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        pass
