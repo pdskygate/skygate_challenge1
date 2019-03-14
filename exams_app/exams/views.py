@@ -27,6 +27,7 @@ class MultiQuestionQSMixin(object):
 
 
 class ParamValidationMixin(object):
+    valid_definitions = {}
 
     def valid_params(self, actual_params):
         if 'page' in actual_params:
