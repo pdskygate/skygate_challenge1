@@ -1,19 +1,34 @@
-from rest_framework import viewsets
-from rest_framework.authentication import BasicAuthentication
-from rest_framework.exceptions import APIException
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from collections import Iterable
+from datetime import datetime
 
-from exams_app.exams.exceptions import InvalidParamError
-from exams_app.exams.models import Exam, User, Question, SolvedExam, Answer
-from exams_app.exams.repositories import ExamRepository, BaseRepository, SolvedExamRepository, AnswerRepository
+from rest_framework import viewsets
+from rest_framework.authentication import BasicAuthentication, SessionAuthentication
+from rest_framework.exceptions import APIException, PermissionDenied
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
+
+from exams_app.exam_permissions import IsReviewer
+from exams_app.exams.exceptions import InvalidParamError, SolvingError
+from exams_app.exams.models import Exam, User, Question, SolvedExam, Answer, QuestionTypeEnum
 from exams_app.exams.response_builder import ResponseBuilder, BasePaginator
 from exams_app.exams.serializers import ExamSerializer, SolvedExamSerializer, AnswerSerializer, QuestionSerializer
 
 
-class ParamValidatorMixin(object):
-    '''valid_definitins should be dict {param_name: type}'''
+class MultiQuestionQSMixin(object):
 
     valid_definitions = None
+
+    def build_multiple_question_qs(self, question_id):
+        qs = None
+        for q_id in question_id:
+            if not qs:
+                qs = Question.objects.filter(pk=q_id)
+            else:
+                qs = qs.union(Question.objects.filter(pk=q_id))
+        return qs
+
+
+class ParamValidationMixin(object):
+    valid_definitions = {}
 
     def valid_params(self, actual_params):
         if 'page' in actual_params:
@@ -34,10 +49,10 @@ class ParamValidatorMixin(object):
         return True
 
 
-class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
+class ExamManagementView(viewsets.ModelViewSet, MultiQuestionQSMixin, ParamValidationMixin):
     serializer_class = ExamSerializer
     permission_classes = (IsAuthenticated,)
-    authentication_classes = (BasicAuthentication,)
+    authentication_classes = (SessionAuthentication,BasicAuthentication)
     valid_definitions = {
 
     }
@@ -59,7 +74,7 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
             paginator = BasePaginator()
             if params.get('page_size'):
                 paginator.page_size = params.get('page_size')
-            paginated_qs = paginator.paginate_queryset(ExamRepository(Exam).filter(**params).fetch_related_all(),
+            paginated_qs = paginator.paginate_queryset(Exam.objects.filter(**params).select_related(),
                                                        request)
             return ResponseBuilder(
                 self.serializer_class(paginated_qs, many=True).data, paginator
@@ -75,18 +90,16 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
         params = request.data
         self.valid_params(params)
 
-        exam_repo = ExamRepository(Exam)
-        user_repo = BaseRepository(User)
-        q_repo = BaseRepository(Question)
-        try:
-            for question_id in params.get('q'):
-                q_repo.find_by_id(question_id)
-        except Question.DoesNotExist as e:
-            raise InvalidParamError(f'Question {e}, does not exist')
-        user = user_repo.filter(username=request.user).fetch()
+        for question_id in params.get('q'):
+            if Question.objects.filter(pk=question_id).count() == 0:
+                raise InvalidParamError(f'Question with id does not exist {question_id}')
 
-        exam = exam_repo.crate_model(user=user, questions=params.get('q'))
-
+        user = User.objects.get(username=request.user)
+        exam = Exam()
+        exam.owner = user
+        exam.save()
+        exam.questions.set([params.get('q')] if not isinstance(params.get('q'), Iterable) else params.get('q'))
+        exam.save()
         return ResponseBuilder(self.serializer_class(exam).data).build()
 
     # {
@@ -102,31 +115,30 @@ class ExamManagementView(viewsets.ModelViewSet, ParamValidatorMixin):
         }
         params.update(request.data)
         self.valid_params(params)
-        exam_repo = ExamRepository(Exam)
-        exam = exam_repo.filter(id=params.pop('pk')).fetch_related()
+        exam = Exam.objects.select_related().get(id=params.pop('pk'))
+        if request.user.username != exam.owner.username:
+            raise PermissionDenied('Only owner can grade')
         questions = params.get('q')
-        q_repo = BaseRepository(Question)
         if questions:
-            for q_id in questions:
-                q_repo.filter(id=q_id)
-            exam = exam_repo.update_model(exam, user=request.user.username, questions=q_repo.fetch_all())
+            exam.questions.set(self.build_multiple_question_qs(questions).all())
         return ResponseBuilder(self.serializer_class(exam).data).build()
 
     # /exam/{pk}/
     def destroy(self, request, **kwargs):
-        exam_repo = ExamRepository(Exam)
         exam_id = self.kwargs.get('pk')
         try:
-            exam_repo.delete_model(exam_id, user=request.user.username)
+            exam = Exam.objects.select_related().get(pk=exam_id)
+            if request.user.username != exam.owner.username:
+                raise PermissionDenied('Only owner can delete')
+            exam.delete()
         except Exam.DoesNotExist as e:
             raise InvalidParamError('Exam with given id not exists')
-
         return ResponseBuilder(True).build()
 
 
-class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
+class SolveExamView(viewsets.ModelViewSet, ParamValidationMixin):
     permission_classes = (IsAuthenticated,)
-    authentication_classes = (BasicAuthentication,)
+    authentication_classes = (SessionAuthentication,BasicAuthentication)
     serializer_class = SolvedExamSerializer
     valid_definitions = {
 
@@ -144,10 +156,12 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
             'page': int
         })
         params = request.query_params.dict()
-        answers = AnswerRepository(Answer).filter(solved_exam__exam_id=params.get('exam_id'),
-                                                  solved_exam__user__username=params.get(
-                                                      'user_name')).fetch_related_all()
+        answers = Answer.objects.filter(solved_exam__exam_id=params.get('exam_id'),
+                                        solved_exam__user__username=params.get(
+                                            'user_name')).select_related().all()
+
         return ResponseBuilder(AnswerSerializer(answers, many=True).data).build()
+
 
     # {
     # 	"exam_id":24,
@@ -161,13 +175,31 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
         })
         params = request.data
         self.valid_params(params)
-        solvedE_repo = SolvedExamRepository(SolvedExam)
-        exam = ExamRepository(Exam).filter(id=params.get('exam_id')).fetch_related()
-        solved = solvedE_repo.crate_model(exam=exam, user=request.user)
-        for question in exam.questions.all():
-            AnswerRepository(Answer).create_model(solved, question, params.get('answers').get(str(question.id), ''))
+        exam = Exam.objects.select_related().get(pk=params.get('exam_id'))
+        if exam.solvedexam_set.count() > 0:
+            raise SolvingError("exam already solved by user")
 
+        solved = SolvedExam()#.crate_model(exam=exam, user=request.user)
+        solved.exam = exam
+        solved.user = request.user
+        solved.date = datetime.now()
+        solved.save()
+        for question in exam.questions.all():
+            a = Answer()
+            a.solved_exam = solved
+            a.question = question
+            value = params.get('answers').get(str(question.id), '')
+            a.set_value(question.question_type, value)
+            if question.question_type.type == QuestionTypeEnum.POSSIBILITY.value:
+                if question.correct_possibility.id == value:
+                    a.solved_exam.possible_grade += question.max_grade
+            else:
+                if question.is_correct(value):
+                    a.solved_exam.possible_grade += question.max_grade
+            a.save()
+        solved.save()
         return ResponseBuilder(f'Exam solved, wait for graduation. Possible result {solved.possible_grade}').build()
+
 
     # {
     # "final_grade":24
@@ -184,23 +216,25 @@ class SolveExamView(viewsets.ModelViewSet, ParamValidatorMixin):
         }
         params.update(request.data)
         self.valid_params(params)
-        solvedE_repo = SolvedExamRepository(SolvedExam)
-        solved_exam = solvedE_repo.filter(id=params.get('pk')).fetch_related()
+        solved_exam = SolvedExam.objects.select_related().get(pk=params.get('pk'))
+        if request.user.username != solved_exam.exam.owner.username:
+            raise PermissionDenied('Only owner can grade')
         if params.get('final_grade'):
-            solvedE_repo.update_model(solved_exam, user=request.user.username, grade=params.get('final_grade'))
+            solved_exam.final_grade = float(params.get('final_grade'))
+        solved_exam.save()
         return ResponseBuilder(self.serializer_class(solved_exam).data).build()
 
 
-class QuestionView(viewsets.ModelViewSet, ParamValidatorMixin):
+class QuestionView(viewsets.ModelViewSet, ParamValidationMixin):
     permission_classes = (IsAuthenticated,)
-    authentication_classes = (BasicAuthentication,)
+    authentication_classes = (SessionAuthentication,BasicAuthentication)
     serializer_class = QuestionSerializer
     valid_definitions = {
 
     }
 
     def get_queryset(self):
-        return BaseRepository(Question).filter()
+        return Question.objects.all()
 
     # /question?page_size=2
     def list(self, request, *args, **kwarg):
@@ -215,15 +249,15 @@ class QuestionView(viewsets.ModelViewSet, ParamValidatorMixin):
         paginator = BasePaginator()
         if params.get('page_size'):
             paginator.page_size = params.get('page_size')
-        paginated = paginator.paginate_queryset(self.get_queryset().fetch_related_all(), request)
+        paginated = paginator.paginate_queryset(self.get_queryset().select_related(), request)
         return ResponseBuilder(
             self.serializer_class(paginated, many=True).data, paginator
         ).paginated_response().build()
 
 
 class QuestionUpdateView(QuestionView):
-    permission_classes = (IsAdminUser,)
-    authentication_classes = (BasicAuthentication,)
+    permission_classes = (IsReviewer,)
+    authentication_classes = (SessionAuthentication,BasicAuthentication)
     serializer_class = QuestionSerializer
     valid_definitions = {
 
@@ -244,19 +278,20 @@ class QuestionUpdateView(QuestionView):
         params = request.data
         params.update({'pk': self.kwargs.get('pk')})
         self.valid_params(params)
-        repo = BaseRepository(Question)
-        question = repo.find_by_id(params.get('pk'))
+        # repo = BaseRepository(Question)
+        question = Question.objects.get(pk=params.get('pk'))
         if params.get('max_grade'):
-            repo.update_model(question, max_grade=params.get('max_grade'))
+            question.max_grade=params.get('max_grade')
         one_of_poss = bool(params.get('one_of_poss'))
         correct_a = params.get('correct_answer')
         if one_of_poss:
             try:
                 correct_a = int(correct_a)
             except ValueError as e:
-                raise InvalidParamError('One of possible answer have to be an int')
+                raise InvalidParamError('One of possible answer have to be an id')
 
-            question = repo.update_model(question, correct_possibility_id=correct_a)
+            question.correct_possibility_id = correct_a
         elif correct_a:
-            question = repo.update_model(question, correct_answer=correct_a)
+            question.correct_answer = correct_a
+        question.save()
         return ResponseBuilder(self.serializer_class(question).data).build()

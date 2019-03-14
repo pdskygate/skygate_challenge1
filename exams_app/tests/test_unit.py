@@ -1,7 +1,7 @@
 from django.test import TestCase
 
 from exams_app.exams.exceptions import InvalidParamError
-from exams_app.exams.views import ParamValidatorMixin
+from exams_app.exams.views import ParamValidationMixin
 
 
 class ParamValidationTestCase(TestCase):
@@ -14,7 +14,7 @@ class ParamValidationTestCase(TestCase):
         test_definitions = {
             'length':int
         }
-        validator = ParamValidatorMixin()
+        validator = ParamValidationMixin()
         validator.valid_definitions = test_definitions
         #when
         #then
@@ -30,7 +30,7 @@ class ParamValidationTestCase(TestCase):
         test_definitions = {
             'width': int
         }
-        validator = ParamValidatorMixin()
+        validator = ParamValidationMixin()
         validator.valid_definitions = test_definitions
         # when
         # then
@@ -45,7 +45,7 @@ class ParamValidationTestCase(TestCase):
         test_definitions = {
             'width': str
         }
-        validator = ParamValidatorMixin()
+        validator = ParamValidationMixin()
         validator.valid_definitions = test_definitions
         # when
         # then

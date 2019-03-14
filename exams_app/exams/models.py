@@ -13,7 +13,9 @@ class QuestionTypeEnum(Enum):
 
 
 class User(AbstractUser):
-    pass
+
+    user = models.BooleanField('ordinary user of service', default=True)
+    reviewer = models.BooleanField('user that can change ', default=False)
 
 
 class AnswerPossibility(models.Model):
@@ -47,8 +49,13 @@ class Question(models.Model):
     answer_possibilities = models.ManyToManyField(AnswerPossibility, blank=True)
     correct_answer = models.CharField(max_length=300, blank=True, null=True)
     correct_possibility = models.ForeignKey(AnswerPossibility, null=True, blank=True, on_delete=models.DO_NOTHING,
-                                            related_name='default_answer')
+                                            related_name='related_question')
     max_grade = models.FloatField(default=5, null=True)
+
+    def is_correct(self, value):
+        if isinstance(value, bool):
+            return (True if self.correct_answer.lower() == 'yes' else False) and value
+        return str(value).lower() == self.correct_answer.lower()
 
     def __str__(self):
         return self.text
