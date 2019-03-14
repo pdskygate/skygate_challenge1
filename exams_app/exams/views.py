@@ -12,7 +12,7 @@ from exams_app.exams.response_builder import ResponseBuilder, BasePaginator
 from exams_app.exams.serializers import ExamSerializer, SolvedExamSerializer, AnswerSerializer, QuestionSerializer
 
 
-class MultiQuestionQS(object):
+class MultiQuestionQSMixin(object):
 
     valid_definitions = None
 
@@ -24,6 +24,9 @@ class MultiQuestionQS(object):
             else:
                 qs = qs.union(Question.objects.filter(pk=q_id))
         return qs
+
+
+class ParamValidationMixin(object):
 
     def valid_params(self, actual_params):
         if 'page' in actual_params:
@@ -44,7 +47,7 @@ class MultiQuestionQS(object):
         return True
 
 
-class ExamManagementView(viewsets.ModelViewSet, MultiQuestionQS):
+class ExamManagementView(viewsets.ModelViewSet, MultiQuestionQSMixin, ParamValidationMixin):
     serializer_class = ExamSerializer
     permission_classes = (IsAuthenticated,)
     authentication_classes = (BasicAuthentication,)
@@ -131,7 +134,7 @@ class ExamManagementView(viewsets.ModelViewSet, MultiQuestionQS):
         return ResponseBuilder(True).build()
 
 
-class SolveExamView(viewsets.ModelViewSet, MultiQuestionQS):
+class SolveExamView(viewsets.ModelViewSet, ParamValidationMixin):
     permission_classes = (IsAuthenticated,)
     authentication_classes = (BasicAuthentication,)
     serializer_class = SolvedExamSerializer
@@ -217,7 +220,7 @@ class SolveExamView(viewsets.ModelViewSet, MultiQuestionQS):
         return ResponseBuilder(self.serializer_class(solved_exam).data).build()
 
 
-class QuestionView(viewsets.ModelViewSet, MultiQuestionQS):
+class QuestionView(viewsets.ModelViewSet, ParamValidationMixin):
     permission_classes = (IsAuthenticated,)
     authentication_classes = (BasicAuthentication,)
     serializer_class = QuestionSerializer
